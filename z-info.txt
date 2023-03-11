@@ -1,0 +1,27 @@
+composer install (в консоли open server (предварительно указав путь в папку с проектом))
+
+php yii migrate
+
+в браузере ввести: адрес сайта/  (здесь- http://im-yii-2-internet-shop/)
+
+
+
+добавим в корень сайта файл: .htaccess чтобы сразу перенаправлялся зопрос в папку: web 
+
+Содержимое файла:
+
+Options +FollowSymLinks
+IndexIgnore */*
+RewriteEngine on
+
+RewriteCond %{REQUEST_URI} !^/(web)
+RewriteRule ^assets/(.*)$ /web/assets/$1 [L]
+RewriteRule ^css/(.*)$ web/css/$1 [L]
+RewriteRule ^js/(.*)$ web/js/$1 [L]
+RewriteRule ^images/(.*)$ web/images/$1 [L]
+RewriteRule (.*) web/$1
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /web/index.php
+
