@@ -28,11 +28,15 @@ class PageController extends Controller
 	public function actionListproducts()
 	{
 		if (isset($_GET['id']) && $_GET['id'] != '' && filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
-			// id категория
+
+			// id категории
 			$id = $_GET['id'];
+
 			$categories = Categories::find()->where(['id' => $id])->asArray()->one();
 
-			if ($categories != Null) {
+			if (count($categories) > 0) {
+
+				// сохраняем в переменной объект для формы сортировки товаров на странице
 				$model = new SortForm();
 
 				$count_products = count(Products::find()
@@ -40,17 +44,27 @@ class PageController extends Controller
 					->asArray()
 					->all());
 
-				$page = 1; //номер страницы
-				$str = null; //сортировка
-				$number = 12; //количество товаров на странице
+				$page = 1; // номер страницы (по умолчанию)
+				$str = null; // сортировка (по умолчанию)
+
+				$number = 3; // количество товаров на странице (по умолчанию)
 
 				if (isset($_GET['page']) && $_GET['page'] != '' && filter_var($_GET['page'], FILTER_VALIDATE_INT)) {
 					$page = $_GET['page'];
 				}
 
-				//ОБРАБОТЧИК ДЛЯ СОРТИРОВКИ
+
+				// ОБРАБОТЧИК ДЛЯ СОРТИРОВКИ
+
 				if ($model->load(Yii::$app->request->post()) && $model->validate()) {
 
+					// echo "<pre>";
+					// print_r($model);
+					// echo "</pre>";
+
+					if (isset($model->number) && !empty($model->number)) {
+						$number = $model->number;
+					}
 
 					if (isset($model->str)) {
 
@@ -89,9 +103,12 @@ class PageController extends Controller
 				} else {
 					$products_array = $this->selectListProd($id, ['id' => SORT_ASC], $number, $page);
 				}
-				//количество страниц для пагинации
+
+				// количество страниц для пагинации
 				$count_pages = ceil($count_products / $number);
 
+
+				// Реализация переключения вида отображения товаров категории (сетка или список)
 				if (isset($_GET['view']) && $_GET['view'] == 1) {
 					$view = 1;
 				} else
@@ -109,11 +126,8 @@ class PageController extends Controller
 		if ($start == 1) {
 			$start = 0;
 		} else {
-			$start = ($start + 1) * $limit;
+			$start = ($start - 1) * $limit;
 		}
-
-
-
 		return  Products::find()
 			->where(['category_id' => $id])
 			->asArray()
@@ -263,7 +277,6 @@ class PageController extends Controller
 	 */
 	public function actionWishList()
 	{
-
 		return $this->render('wish-list');
 	}
 
@@ -273,6 +286,7 @@ class PageController extends Controller
 	 */
 	public function actionProduct()
 	{
+		// подключаем соответствующий шаблон:
 		$this->layout = 'product';
 
 		if (isset($_GET['id']) && !empty($_GET['id']) &&  filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
@@ -294,7 +308,95 @@ class PageController extends Controller
 	 */
 	public function actionCart()
 	{
+		$session = Yii::$app->session;
 
-		return $this->render('cart');
+		//$session->destroy();
+
+		// затем откроем сессию:
+		$session->open();
+
+		// проверим есть ли в соответствующем глобальном массиве нужная нам сессия(здесь- productsSession):
+		if ($session->has('productsSession')) {
+
+			// получим из сессии данные (в сессии будут храниться последовательность товаров и их кол-во(массив)):
+			$productsSession = $session->get('productsSession');
+		} else {
+
+			$productsSession = array();
+		}
+
+		// реализуем добавление товаров в корзину:
+		if (isset($_GET['id']) && !empty($_GET['id']) && filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
+
+			$productsArray = Products::find()->where(['id' => $_GET['id']])->asArray()->one();
+
+			if (is_array($productsArray) && count($productsArray) > 0) {
+
+				$flag = false;
+
+				// организуем проверку есть ли в сессии конкретый товар (если он есть увеличим его кол-во на единицу):
+				for ($i = 0; $i < count($productsSession); $i++) {
+
+					if ($productsSession[$i]['id'] == $_GET['id']) {
+
+						$flag = true;
+
+						// проверим допускается ли увеличение конкретного товара в корзине (остатки на складе):
+						if ($productsArray['count'] >= $productsSession[$i]['count'] + 1) {
+
+							$productsSession[$i]['count']++;
+						}
+						break;
+					}
+				}
+
+				// если флаг в значении не истина (ложь) значит добавления не было
+				if (!$flag) {
+
+					array_push($productsSession, ['id' => $_GET['id'], 'count' => 1]);
+				}
+			}
+		}
+
+		// в сессию запишем полученный массив
+		$session->set('productsSession', $productsSession);
+
+		// занесём содержимое из сессии в соответствующую переменную:
+		$productsSession = $session->get('productsSession');
+
+		// echo "<pre>";
+		// print_r($productsSession);
+		// echo "</pre>";
+
+		// Выведем записанные в корзину товары в представление
+
+		// инициализируем массив в котором будут храниться идентификаторы(id) товаров в корзине:
+		$arrayId = array();
+
+
+		foreach ($productsSession as $value) {
+
+			array_push($arrayId, $value['id']);
+		}
+
+		// на основе полученных данных сделаем выборку всех нужных товаров в корзине:
+		$products = Products::find()->where(['id' => $arrayId])->asArray()->all();
+
+		// реализуем подсчёт сколько товаров мы хотим заказать
+		foreach ($products as $key => $value) {
+
+			$products[$key]['count_cart'] = $productsSession[$key]['count'];
+		}
+
+
+		return $this->render('cart', compact('products'));
+	}
+
+	/** 
+	 * Авторизация и регистрация (адрес)
+	 */
+	public function actionCheckout()
+	{
+		return $this->render('checkout');
 	}
 }

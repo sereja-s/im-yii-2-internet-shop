@@ -10,23 +10,21 @@ use yii\base\Model;
  */
 class SortForm extends Model
 {
-    public $str;// сортировка по правилу
-    public $number;//по сколько товаров на странице
-  
-  
+	public $str; // сортировка по правилу
+	public $number; // по сколько товаров выводить на странице
 
 
-    /**
-     * @return array the validation rules.
-     */
-    public function rules()
-    {
-        return [
-            
-            [['str', 'number'], 'trim'],
-        
-        ];
-    }
 
-   
+
+	/**
+	 * @return array the validation rules.
+	 */
+	public function rules()
+	{
+		return [
+			// обрезаем пустые значения слева и справа
+			[['str', 'number'], 'trim'],
+
+		];
+	}
 }

@@ -53,10 +53,11 @@ AppAsset::register($this);
 						</div>
 					</div>
 					<div class="cart_top">
-						<a href="#">
+						<!-- <a href="#">
 							<i class="glyphicon glyphicon-shopping-cart"></i>
-							<span>0</span>
-						</a>
+							<span>0</span>						
+						</a> -->
+						<?php echo \app\components\CartWidget::widget(); ?>
 					</div>
 				</div>
 			</div>
